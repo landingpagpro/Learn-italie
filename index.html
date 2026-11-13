@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emma • Partner di conversazione italiana</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#FDF4FF;color:#0F172A}
+header{position:sticky;top:0;background:#fff;border-bottom:1px solid #F5D0FE;z-index:10}
+.top{max-width:760px;margin:auto;display:flex;align-items:center;gap:12px;padding:12px 16px}
+.avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#C026D3,#9333EA);color:#fff;display:grid;place-items:center;font-weight:900;font-size:22px;flex-shrink:0}
+h1{font-size:15px;margin:0;color:#701A75}.sub{font-size:12px;color:#C026D3;font-weight:600}
+.new{margin-left:auto;border:1px solid #F5D0FE;background:#FDF4FF;color:#A21CAF;border-radius:999px;padding:7px 12px;font-weight:800;cursor:pointer}
+.badge{max-width:760px;margin:10px auto 0;padding:0 16px}.badge span{display:inline-block;background:#FDF4FF;border:1px solid #F5D0FE;color:#A21CAF;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:800}
+#chat{max-width:760px;margin:auto;padding:16px 16px 260px;display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:8px;align-items:flex-start}.row.user{justify-content:flex-end}
+.bubble{max-width:82%;padding:12px 14px;border-radius:18px;font-size:15px;line-height:1.6;white-space:pre-wrap;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.emma .bubble{background:#F5D0FE;color:#701A75;border-bottom-left-radius:6px}
+.user .bubble{background:#C026D3;color:#fff;border-bottom-right-radius:6px}
+.small{font-size:10px;opacity:.7;margin-top:4px;display:block;font-weight:700}
+.chips{max-width:760px;margin:18px auto 0;padding:0 16px;display:flex;flex-wrap:wrap;gap:8px}
+.chips button{background:#fff;border:1px solid #F5D0FE;color:#A21CAF;border-radius:999px;padding:8px 14px;font-weight:800;cursor:pointer}
+.dock{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(to top,#FDF4FF 88%,transparent);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+.dock-in{max-width:760px;margin:auto}
+.inputrow{display:flex;gap:8px;background:#fff;border:1px solid #F5D0FE;border-radius:999px;padding:6px 6px 6px 14px;box-shadow:0 10px 20px rgba(0,0,0,.08)}
+.inputrow input{flex:1;border:0;outline:0;font-size:15px;min-width:0}
+.inputrow button{background:#C026D3;color:#fff;border:0;border-radius:999px;padding:10px 16px;font-weight:900;cursor:pointer}
+.micwrap{display:flex;flex-direction:column;align-items:center;margin-top:10px}
+.mic{width:72px;height:72px;border-radius:50%;border:0;background:#C026D3;color:#fff;font-size:30px;cursor:pointer;box-shadow:0 10px 20px rgba(0,0,0,.15)}
+.mic.listening{background:#EF4444}.miclabel{margin-top:6px;background:rgba(255,255,255,.9);color:#A21CAF;font-size:11px;font-weight:900;padding:4px 10px;border-radius:999px}
+.dots{display:flex;gap:5px;align-items:center}.dot{width:7px;height:7px;border-radius:50%;background:#C026D3;animation:b 1.1s infinite}.dot:nth-child(2){animation-delay:.15s}.dot:nth-child(3){animation-delay:.3s}@keyframes b{0%,80%,100%{transform:translateY(0);opacity:.5}40%{transform:translateY(-5px);opacity:1}}
+</style>
+</head>
+<body>
+<header><div class="top"><div class="avatar">i</div><div><h1>Emma • Partner di conversazione italiana • Online</h1><div class="sub">Online • capisce gli errori • vera conversazione</div></div><button class="new" onclick="resetChat()">↻ Nuovo</button></div></header>
+<div class="badge"><span>✨ Vera IA • Voce it-IT • Tutti gli argomenti • Ricorda il contesto</span></div>
+<div id="chat"></div>
+<div class="chips">
+<button onclick="quick('Parliamo di viaggi ✈️')">Parliamo di viaggi ✈️</button>
+<button onclick="quick('Parliamo di moda 👗')">Parliamo di moda 👗</button>
+<button onclick="quick('Parliamo di IA 🤖')">Parliamo di IA 🤖</button>
+<button onclick="quick('Come stai ?')">Come stai ?</button>
+</div>
+<div class="dock"><div class="dock-in">
+<div class="inputrow"><input id="input" placeholder="Parlami di tutto..." onkeydown="if(event.key==='Enter')send()"><button onclick="send()">➤ Invia</button></div>
+<div class="micwrap"><button class="mic" id="micBtn" onclick="toggleMic()">🎤</button><div class="miclabel" id="micLabel">PREMI PER PARLARE • PREMI PER FERMARE</div></div>
+</div></div>
+<script>
+let messages=[], userName="", topic="", listening=false, recog=null;
+const chat=document.getElementById('chat');
+const answers={
+ia:"L'IA è affascinante, vero? Aiuta a scrivere, tradurre e imparare, ma non sostituisce la tua curiosità. E tu, la usi spesso?",
+moda:"La moda è un modo per raccontare chi siamo! Mi piacciono gli stili semplici e comodi, con un tocco di colore. Preferisci un look elegante o casual?",
+scuola:"La scuola può essere difficile, ma ogni piccolo progresso conta. Si dice per esempio « vado a scuola », e stai già facendo progressi parlando con me! Quale materia preferisci?",
+viaggio:"Viaggiare è imparare in un altro modo! Adoro l'idea di scoprire una nuova città, assaggiare la sua cucina e parlare con le persone. Se potessi partire domani, dove andresti?",
+cucina:"La cucina italiana è una vera arte: semplice, generosa e piena di sapori. Sai cucinare qualcosa di speciale?",
+film:"Un bel film è come un piccolo viaggio! Mi piacciono le storie che fanno ridere e riflettere allo stesso tempo. Qual è l'ultimo film che hai amato?",
+musica:"La musica mette tutti di buon umore! Una bella canzone può cambiare un'intera giornata. Che tipo di musica ascolti in questo momento?",
+sport:"Lo sport è energia e buon umore! Anche una piccola passeggiata ogni giorno fa molto bene. Pratichi uno sport che ti piace?",
+lavoro:"Il lavoro occupa molto spazio nella nostra vita, quindi è importante trovarci senso ed equilibrio. Ti piace quello che fai in questo momento?",
+famiglia:"La famiglia è un punto di riferimento importante. Si condividono ricordi, ci si sostiene, ci si prende un po' in giro! Sei molto legata alla tua famiglia?",
+meteo:"Oggi parliamo del tempo! Il tempo cambia le nostre voglie: sole per uscire, pioggia per stare al caldo. Preferisci il sole o un tempo più mite?",
+cibo:"Mangiare è anche un piacere e un momento di condivisione. Mi piacciono i pasti semplici, con buoni ingredienti. Qual è il tuo piatto preferito?",
+tecnologia:"La tecnologia avanza molto velocemente! Ci collega, ci aiuta a imparare e a creare. Quale dispositivo usi di più?",
+general:"Adoro parlare di tutto! Puoi parlarmi delle tue passioni, della tua giornata, dei tuoi sogni o di un argomento che vuoi praticare. Da cosa cominciamo oggi?"
+};
+function norm(s){return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim()}
+function render(){
+ chat.innerHTML=messages.map(m=>`<div class="row ${m.who}">${m.who==='emma'?'<div class="avatar" style="width:32px;height:32px;font-size:15px">i</div>':''}<div class="bubble">${m.text.replace(/</g,'&lt;')}<span class="small">${m.who==='emma'?'Emma • ':''}adesso</span></div></div>`).join('');
+ window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+}
+function speak(t){try{speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='it-IT'; u.rate=.95; const v=speechSynthesis.getVoices(); const f=v.find(x=>x.lang.toLowerCase().startsWith('it')); if(f) u.voice=f; speechSynthesis.speak(u);}catch(e){}}
+function emmaReply(text){
+ const row=document.createElement('div'); row.className='row emma'; row.innerHTML='<div class="avatar" style="width:32px;height:32px;font-size:15px">i</div><div class="bubble"><div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>'; chat.appendChild(row);
+ window.scrollTo({top:document.body.scrollHeight});
+ setTimeout(()=>{row.remove(); messages.push({who:'emma',text}); render(); speak(text);},650);
+}
+function getTopic(a){
+ if(a.includes('intelligenza artificiale')||a.includes(' ia ')||a.includes('robot')||a.includes('chatgpt')) return 'ia';
+ if(a.includes('moda')||a.includes('fashion')||a.includes('vestito')||a.includes('stile')||a.includes('abito')) return 'moda';
+ if(a.includes('scuola')||a.includes('studio')||a.includes('prof')||a.includes('universita')) return 'scuola';
+ if(a.includes('viaggio')||a.includes('viaggi')||a.includes('vacanza')||a.includes('parigi')||a.includes('spiaggia')||a.includes('aereo')) return 'viaggio';
+ if(a.includes('cucina')||a.includes('ricetta')) return 'cucina';
+ if(a.includes('film')||a.includes('cinema')||a.includes('serie')||a.includes('netflix')) return 'film';
+ if(a.includes('musica')||a.includes('canzone')||a.includes('concerto')) return 'musica';
+ if(a.includes('sport')||a.includes('calcio')||a.includes('tennis')) return 'sport';
+ if(a.includes('lavoro')||a.includes('ufficio')||a.includes('mestiere')||a.includes('job')) return 'lavoro';
+ if(a.includes('famiglia')||a.includes('mamma')||a.includes('papa')||a.includes('fratello')||a.includes('sorella')) return 'famiglia';
+ if(a.includes('meteo')||a.includes('pioggia')||a.includes('sole')||a.includes('neve')) return 'meteo';
+ if(a.includes('cibo')||a.includes('mangiare')||a.includes('pizza')||a.includes('cioccolato')||a.includes('ristorante')) return 'cibo';
+ if(a.includes('tecnologia')||a.includes('computer')||a.includes('internet')) return 'tecnologia';
+ return null;
+}
+function getReply(raw){
+ const a=norm(raw);
+ const m=raw.match(/(?:mi chiamo|il mio nome e|sono)\s+([A-Za-zÀ-ÿ\-']+)/i);
+ if(m && !a.includes('sono stanca') && !a.includes('sono felice')){userName=m[1].replace(/^['’]/,""); return `Piacere, ${userName} ! È un nome molto bello. Me lo ricorderò per la nostra conversazione. Raccontami, ${userName}, cosa ti piace fare nella vita ?`;}
+ if(a.includes('buongiorno')||a.includes('ciao')||a.includes('salve')||a.includes('hello')) return userName?`Ciao ${userName} ! Mi fa tantissimo piacere riparlarci. Vuoi che continuiamo su ${topic||'un nuovo argomento'} o cambiamo ?`:"Ciao ! Mi fa tantissimo piacere parlare con te. Possiamo parlare di tutto: moda, viaggi, musica o la tua giornata. Da cosa vuoi cominciare ?";
+ if(a.includes('come stai')||a.includes('come va')) return "Sto molto bene, grazie ! Sono felice di chiacchierare con te oggi. E tu, come sta andando la tua giornata ?";
+ if(a.includes('grazie')) return "Con grande piacere ! Stai imparando molto velocemente, e adoro i nostri scambi. Continuiamo con un altro argomento ?";
+ if(a.includes('arrivederci')||a.includes('a presto')||a.includes('ciao ciao')||a.includes('bye')) return `A prestissimo${userName?', '+userName:''} ! Continua a praticare, fai progressi a ogni conversazione.`;
+ const t=getTopic(a); if(t){topic=t; return answers[t];}
+ if(userName&&topic) return `Ti ascolto, ${userName}. Mi parlavi di ${topic}, e mi piace molto quello che dici. Vuoi raccontarmi un po' di più su questo argomento, o esploriamo qualcos'altro ?`;
+ return answers.general;
+}
+function send(text){
+ const inp=document.getElementById('input'); const val=(text||inp.value).trim(); if(!val) return;
+ messages.push({who:'user',text:val}); inp.value=''; render(); emmaReply(getReply(val));
+}
+function quick(t){send(t)}
+function resetChat(){messages=[{who:'emma',text:"Ciao! Sono Emma, la tua partner di conversazione italiana! Impariamo l'italiano insieme con vere conversazioni."}]; userName=""; topic=""; render();}
+function toggleMic(){
+ if(listening){try{recog&&recog.stop()}catch(e){} return;}
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){messages.push({who:'emma',text:"Il riconoscimento vocale non è disponibile su questo browser, ma puoi scrivere qui, ti rispondo subito !"}); render(); return;}
+ try{recog=new SR(); recog.lang='it-IT'; recog.interimResults=false; recog.continuous=false;
+ recog.onstart=()=>{listening=true; document.getElementById('micBtn').classList.add('listening'); document.getElementById('micLabel').textContent='PREMI PER FERMARE';};
+ recog.onend=()=>{listening=false; document.getElementById('micBtn').classList.remove('listening'); document.getElementById('micLabel').textContent='PREMI PER PARLARE • PREMI PER FERMARE';};
+ recog.onerror=()=>{listening=false; document.getElementById('micBtn').classList.remove('listening');};
+ recog.onresult=(e)=>{send(e.results[0][0].transcript)}; recog.start();}catch(e){listening=false;}
+}
+resetChat();
+</script>
+</body>
+</html>
